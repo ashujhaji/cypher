@@ -31,7 +31,7 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/cypher
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'branch' }}
             type=sha,prefix=,format=short
             type=semver,pattern={{version}}
 
