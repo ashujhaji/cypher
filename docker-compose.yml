@@ -8,8 +8,10 @@ services:
       - .env
     environment:
       - STORE_PATH=/app/data/store.json
+      - CHANNEL_MAP_PATH=/app/config/channels.json
     volumes:
       - ./data:/app/data
+      - ./config:/app/config:ro
     logging:
       driver: json-file
       options:

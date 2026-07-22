@@ -19,9 +19,9 @@ Named after the X-Men's Doug Ramsey, whose power is instantly understanding and 
 ## 2. Create the GitHub PAT
 
 1. GitHub → **Settings → Developer settings → Fine-grained personal access tokens → Generate new token**.
-2. Resource owner: your account/org. Repository access: only the target repo.
+2. Resource owner: your account/org. Repository access: **every** repo you plan to route a Discord channel to (see [§4](#4-map-discord-channels-to-repos)).
 3. Permissions: **Issues → Read and write**. Nothing else.
-4. Copy the token → `GITHUB_TOKEN`. Set `GITHUB_OWNER` and `GITHUB_REPO` to the target repo.
+4. Copy the token → `GITHUB_TOKEN`.
 
 ## 3. Configure
 
@@ -37,19 +37,40 @@ Fill in `.env`:
 | `DISCORD_CLIENT_ID` | no | only used if you add slash commands later |
 | `ALLOWED_ROLE_IDS` | no | comma-separated role IDs; empty = anyone can use the bot |
 | `GITHUB_TOKEN` | yes | fine-grained PAT from step 2 |
-| `GITHUB_OWNER` / `GITHUB_REPO` | yes | target repo for filed issues |
-| `DEFAULT_LABELS` | no | comma-separated labels applied to every issue (default `from-discord`) |
+| `DEFAULT_LABELS` | no | comma-separated labels applied to issues from channels with no `labels` override in `channels.json` |
+| `CHANNEL_MAP_PATH` | no | path to the channel→repo map (default `./channels.json`, set to `/app/config/channels.json` under Docker). The map itself must have at least one entry — the bot refuses to start otherwise. |
 | `STORE_PATH` | no | dedupe file location (default `./data/store.json`, set to `/app/data/store.json` under Docker) |
 | `COOLDOWN_SECONDS` | no | per-user cooldown between filed issues (default `10`) |
 
-## 4. Run locally
+## 4. Map Discord channels to repos
+
+There's no default/fallback repo — every channel the bot listens in must have an explicit entry in the channel map, or the bot refuses to start.
+
+```bash
+cp channels.json.example channels.json
+```
+
+```json
+{
+  "111111111111111111": { "owner": "ashujhaji", "repo": "cypher" },
+  "222222222222222222": { "owner": "ashujhaji", "repo": "heimdall", "labels": ["from-discord", "heimdall"] }
+}
+```
+
+- Keys are Discord **channel IDs** (enable Developer Mode in Discord settings, then right-click a channel → **Copy Channel ID**).
+- `owner`/`repo` route that channel's issues to that repo; `labels` optionally overrides `DEFAULT_LABELS` just for that channel.
+- A channel with no entry gets a reply saying it isn't wired up — the bot never guesses a repo.
+- The one `GITHUB_TOKEN` is shared across every repo you route to — make sure the PAT from step 2 actually has access to all of them.
+- The file is reloaded only on startup; restart the bot (`docker compose restart` or `npm start`) after editing it.
+
+## 5. Run locally
 
 ```bash
 npm install
 npm start
 ```
 
-## 5. Run with Docker (Windows, always-on)
+## 6. Run with Docker (Windows, always-on)
 
 Requires Docker Desktop.
 
@@ -57,19 +78,19 @@ Requires Docker Desktop.
 docker compose up -d --build
 ```
 
-This builds the image, starts the container with `restart: unless-stopped` (so it survives reboots and Docker Desktop restarts), and persists the dedupe store to `./data/store.json` on the host via a bind-mounted volume.
+This builds the image, starts the container with `restart: unless-stopped` (so it survives reboots and Docker Desktop restarts), and persists the dedupe store to `./data/store.json` on the host via a bind-mounted volume. If you're using a channel map, put it at `./config/channels.json` — compose mounts that directory read-only and points `CHANNEL_MAP_PATH` at it automatically.
 
 Useful commands:
 
 ```bash
 docker compose logs -f          # tail logs
-docker compose restart          # restart after editing .env
+docker compose restart          # restart after editing .env or channels.json
 docker compose down             # stop and remove the container
 ```
 
 The bot only makes outbound connections (Discord gateway, GitHub REST API) — no inbound ports are exposed or required.
 
-## 6. Publish the image to Docker Hub via GitHub Actions
+## 7. Publish the image to Docker Hub via GitHub Actions
 
 `.github/workflows/docker-publish.yml` builds and pushes the image on every push to `main` and on `v*.*.*` tags.
 
@@ -84,8 +105,8 @@ To run the published image instead of building locally, point `docker-compose.ym
 
 ```bash
 docker run -d --name cypher --restart unless-stopped \
-  --env-file .env -e STORE_PATH=/app/data/store.json \
-  -v "${PWD}/data:/app/data" \
+  --env-file .env -e STORE_PATH=/app/data/store.json -e CHANNEL_MAP_PATH=/app/config/channels.json \
+  -v "${PWD}/data:/app/data" -v "${PWD}/config:/app/config:ro" \
   <DOCKERHUB_USERNAME>/cypher:latest
 ```
 

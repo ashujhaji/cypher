@@ -4,6 +4,7 @@ const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { parseMessage } = require('./parseMessage');
 const { createGithubClient } = require('./githubClient');
 const { Store } = require('./store');
+const { loadChannelMap, resolveTarget } = require('./channelMap');
 
 const log = {
   info: (...args) => console.log(new Date().toISOString(), 'INFO', ...args),
@@ -23,8 +24,6 @@ function requireEnv(name) {
 const config = {
   discordToken: requireEnv('DISCORD_TOKEN'),
   githubToken: requireEnv('GITHUB_TOKEN'),
-  githubOwner: requireEnv('GITHUB_OWNER'),
-  githubRepo: requireEnv('GITHUB_REPO'),
   allowedRoleIds: (process.env.ALLOWED_ROLE_IDS || '')
     .split(',')
     .map((id) => id.trim())
@@ -35,14 +34,26 @@ const config = {
     .filter(Boolean),
   storePath: process.env.STORE_PATH || './data/store.json',
   cooldownSeconds: Number(process.env.COOLDOWN_SECONDS || 10),
+  channelMapPath: process.env.CHANNEL_MAP_PATH || './channels.json',
 };
 
 const store = new Store(config.storePath);
-const github = createGithubClient({
-  token: config.githubToken,
-  owner: config.githubOwner,
-  repo: config.githubRepo,
-});
+const github = createGithubClient({ token: config.githubToken });
+
+let channelMap;
+try {
+  channelMap = loadChannelMap(config.channelMapPath);
+} catch (err) {
+  log.error(err.message);
+  process.exit(1);
+}
+
+if (Object.keys(channelMap).length === 0) {
+  log.error(
+    `${config.channelMapPath} has no entries. Add at least one Discord channel -> repo mapping (see channels.json.example) — there is no fallback repo.`
+  );
+  process.exit(1);
+}
 
 const lastUsedByUser = new Map();
 
@@ -88,6 +99,13 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
+    const target = resolveTarget(channelMap, message.channel.id, config.defaultLabels);
+
+    if (!target) {
+      await message.reply("This channel isn't wired to a GitHub repo yet. Ask an admin to add it to the channel map.");
+      return;
+    }
+
     const strippedContent = stripBotMention(message.content, client.user.id);
 
     let sourceText;
@@ -127,7 +145,7 @@ client.on('messageCreate', async (message) => {
       author: sourceAuthor,
       sourceUrl,
       extraContext,
-      defaultLabels: config.defaultLabels,
+      defaultLabels: target.labels,
     });
 
     if (!parsed) {
@@ -137,7 +155,7 @@ client.on('messageCreate', async (message) => {
 
     lastUsedByUser.set(message.author.id, Date.now());
 
-    const issue = await github.createGithubIssue(parsed);
+    const issue = await github.createGithubIssue({ ...parsed, owner: target.owner, repo: target.repo });
     await store.set(dedupeKey, issue.url);
     await message.react('✅');
     await message.reply(`Filed issue #${issue.number}: ${issue.url}`);

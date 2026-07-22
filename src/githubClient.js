@@ -1,9 +1,9 @@
 const { Octokit } = require('@octokit/rest');
 
-function createGithubClient({ token, owner, repo }) {
+function createGithubClient({ token }) {
   const octokit = new Octokit({ auth: token });
 
-  async function createGithubIssue({ title, body, labels }) {
+  async function createGithubIssue({ owner, repo, title, body, labels }) {
     const { data } = await octokit.rest.issues.create({
       owner,
       repo,
