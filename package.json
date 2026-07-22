@@ -1,0 +1,19 @@
+{
+  "name": "cypher",
+  "version": "1.0.0",
+  "description": "Cypher - Discord bot that translates a tagged message straight into a GitHub issue",
+  "main": "src/index.js",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.1.1",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}
