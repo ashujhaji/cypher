@@ -74,6 +74,28 @@ function stripBotMention(content, botUserId) {
   return content.replace(mentionPattern, '').trim();
 }
 
+function extractEmbedText(embed) {
+  const parts = [];
+  if (embed.title) parts.push(embed.title);
+  if (embed.description) parts.push(embed.description);
+  for (const field of embed.fields || []) {
+    parts.push(`${field.name}: ${field.value}`);
+  }
+  return parts.join('\n');
+}
+
+// Bots frequently post content as a rich embed instead of plain text, in
+// which case message.content is empty even though the message clearly has
+// visible text — fall back to the embed for those.
+function extractMessageText(message) {
+  if (message.content && message.content.trim()) return message.content;
+  for (const embed of message.embeds) {
+    const text = extractEmbedText(embed);
+    if (text) return text;
+  }
+  return '';
+}
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Message, Partials.Channel],
@@ -116,7 +138,7 @@ client.on('messageCreate', async (message) => {
 
     if (message.reference) {
       const referenced = await message.fetchReference();
-      sourceText = referenced.content;
+      sourceText = extractMessageText(referenced);
       sourceAuthor = referenced.author.tag;
       sourceUrl = referenced.url;
       dedupeKey = referenced.id;

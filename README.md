@@ -84,7 +84,8 @@ Useful commands:
 
 ```bash
 docker compose logs -f          # tail logs
-docker compose restart          # restart after editing .env or channels.json
+docker compose up -d            # recreate the container after editing .env (restart does NOT reload it)
+docker compose restart          # restart after editing channels.json only (no .env changes)
 docker compose down             # stop and remove the container
 ```
 
