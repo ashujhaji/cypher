@@ -52,8 +52,8 @@ cp channels.json.example channels.json
 
 ```json
 {
-  "111111111111111111": { "owner": "ashujhaji", "repo": "cypher" },
-  "222222222222222222": { "owner": "ashujhaji", "repo": "heimdall", "labels": ["from-discord", "heimdall"] }
+  "111111111111111111": { "owner": "your-org", "repo": "cypher" },
+  "222222222222222222": { "owner": "your-org", "repo": "your-other-repo", "labels": ["from-discord", "your-other-repo"] }
 }
 ```
 
@@ -93,14 +93,14 @@ The bot only makes outbound connections (Discord gateway, GitHub REST API) — n
 
 ## 7. Publish the image to Docker Hub via GitHub Actions
 
-`.github/workflows/docker-publish.yml` builds and pushes the image on every push to `main` and on `v*.*.*` tags.
+`.github/workflows/docker-deploy.yml` builds and pushes the image on every push to `master` and on `v*.*.*` tags.
 
 1. Push this repo to GitHub.
 2. Create a [Docker Hub access token](https://app.docker.com/settings/personal-access-tokens) (read/write scope).
 3. In the GitHub repo, add two Actions secrets (**Settings → Secrets and variables → Actions**):
    - `DOCKERHUB_USERNAME` — your Docker Hub username
    - `DOCKERHUB_TOKEN` — the access token from step 2
-4. Push to `main` (or run the workflow manually via **Actions → Build and Push Docker Image → Run workflow**). The image is published as `<DOCKERHUB_USERNAME>/cypher:latest` and tagged with the commit SHA.
+4. Push to `master` (or run the workflow manually via **Actions → Build and Push Docker Image → Run workflow**). The image is published as `<DOCKERHUB_USERNAME>/cypher:latest` only — every push overwrites the same tag rather than creating a new one.
 
 To run the published image instead of building locally, point `docker-compose.yml`'s `image:` at `<DOCKERHUB_USERNAME>/cypher:latest` and drop the `build:` key, or run directly:
 

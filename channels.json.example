@@ -1,4 +1,4 @@
 {
-  "111111111111111111": { "owner": "ashujhaji", "repo": "cypher" },
-  "222222222222222222": { "owner": "ashujhaji", "repo": "heimdall", "labels": ["from-discord", "heimdall"] }
+  "111111111111111111": { "owner": "your-org", "repo": "cypher" },
+  "222222222222222222": { "owner": "your-org", "repo": "your-other-repo", "labels": ["from-discord", "your-other-repo"] }
 }
